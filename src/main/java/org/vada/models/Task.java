@@ -20,7 +20,7 @@ public class Task extends Model {
     private Project project;
     private int projectId;
     private int totalProgress;
-
+    private List<UserTask> userTasks;
     public Project getProject() {
         return project;
     }
@@ -91,6 +91,14 @@ public class Task extends Model {
 
     public void setProjectId(int projectId) {
         this.projectId = projectId;
+    }
+
+    public List<UserTask> getUserTasks() {
+        return userTasks;
+    }
+
+    public void setUserTasks(List<UserTask> userTasks) {
+        this.userTasks = userTasks;
     }
 
     public int getTotalProgress() {
