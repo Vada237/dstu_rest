@@ -58,7 +58,8 @@ public class UserTask extends Model{
         this.totalProgress = totalProgress;
     }
 
-    public UserTask(int userId, int taskId, int trackedTime, int totalProgress) {
+    public UserTask(int id, int userId, int taskId, int trackedTime, int totalProgress) {
+        this.id = id;
         this.userId = userId;
         this.taskId = taskId;
         this.trackedTime = trackedTime;
@@ -92,6 +93,7 @@ public class UserTask extends Model{
 
         while (data.next()) {
             userTasks.add(new UserTask(
+                    data.getInt("id"),
                     data.getInt("user_id"),
                     data.getInt("task_id"),
                     data.getInt("tracked_time"),
