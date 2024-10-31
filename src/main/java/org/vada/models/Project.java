@@ -2,6 +2,7 @@ package org.vada.models;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +11,8 @@ public class Project extends Model{
     public static String tableName = "projects";
     private int id;
     private String title;
+    private LocalDateTime startTime;
+    private LocalDateTime finishTime;
     private List<Task> tasks;
 
     public int getId() {
@@ -36,9 +39,27 @@ public class Project extends Model{
         this.tasks = tasks;
     }
 
-    public Project(int id, String title) {
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public LocalDateTime getFinishTime() {
+        return finishTime;
+    }
+
+    public void setFinishTime(LocalDateTime finishTime) {
+        this.finishTime = finishTime;
+    }
+
+    public Project(int id, String title, LocalDateTime startTime, LocalDateTime finishTime) {
         this.id = id;
         this.title = title;
+        this.startTime = startTime;
+        this.finishTime = finishTime;
     }
 
     public Project() {
@@ -72,7 +93,12 @@ public class Project extends Model{
         ArrayList<Project> projects = new ArrayList<>();
 
         while (data.next()) {
-            projects.add(new Project(data.getInt("id"), data.getString("title")));
+            projects.add(new Project(
+                    data.getInt("id"),
+                    data.getString("title"),
+                    data.getTimestamp("start_time").toLocalDateTime(),
+                    data.getTimestamp("end_time").toLocalDateTime()
+            ));
         }
 
         return projects;

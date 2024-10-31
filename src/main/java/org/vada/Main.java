@@ -11,12 +11,12 @@ public class Main {
     public static final String BASE_URI = "http://localhost:8081/api/";
 
     public static HttpServer startServer() {
-        final ResourceConfig rc = new ResourceConfig().packages("org.vada.services");
+        final ResourceConfig rc = new ResourceConfig().packages("org.vada.services.reports");
 
         return GrizzlyHttpServerFactory.createHttpServer(URI.create(BASE_URI), rc);
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         final HttpServer server = startServer();
         System.out.println(String.format("Jersey app started at %s%s", BASE_URI, "message"));
         System.out.println("Hit enter to stop it...");
