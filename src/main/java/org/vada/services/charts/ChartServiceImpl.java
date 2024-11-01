@@ -9,13 +9,16 @@ import org.jfree.data.time.Day;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.xy.XYDataset;
+import org.vada.consts.Consts;
 import org.vada.models.Project;
 import org.vada.models.Task;
+import org.vada.models.UserTask;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Date;
@@ -81,7 +84,7 @@ public class ChartServiceImpl implements ChartService {
 
         TimeSeriesCollection dataset = new TimeSeriesCollection();
         dataset.addSeries(generateIdealLine(startDate, finishDate, totalWorkHours));
-        dataset.addSeries(generateIterationLine(Task.getByProjectId(project.getId())));
+        dataset.addSeries(generateIterationLine(Task.getByProjectId(project.getId()), startDate, totalWorkHours));
 
         return dataset;
     }
@@ -102,7 +105,40 @@ public class ChartServiceImpl implements ChartService {
         return idealBurndown;
     }
 
-    private TimeSeries generateIterationLine(List<Task> taskList) {
-        return new TimeSeries("Фактические затраты");
+    private TimeSeries generateIterationLine(List<Task> taskList, LocalDate startingDate, double idealWorkingHours) throws SQLException {
+        TimeSeries factBurndown = new TimeSeries("Фактические затраты");
+
+        LocalDate startDate = taskList.stream()
+                .map(task -> LocalDate.parse(task.getStartTime(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                .min(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+
+        LocalDate finishDate = taskList.stream()
+                .map(task -> LocalDate.parse(task.getFinishTime(),  DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                .max(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+
+        Day startDay = new Day(Date.from(startingDate.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        factBurndown.add(startDay, idealWorkingHours);
+        double totalWorkCompleted = 0;
+        for (LocalDate date = startDate; !date.isAfter(finishDate); date = date.plusDays(1)) {
+            for (Task task : taskList) {
+                double taskWorkCompleted = 0;
+                for (UserTask userTask : UserTask.getByTaskId(task.getId())) {
+                    LocalDate userTaskDate = LocalDate.parse(userTask.getCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                    if (!userTaskDate.isAfter(date)) {
+                        taskWorkCompleted += userTask.getTrackedTime() / (double) Consts.SECONDS_IN_HOURS;
+                    }
+                    if (userTask.getTotalProgress() == 100 && !userTaskDate.isAfter(date)) {
+                        totalWorkCompleted += userTask.getTrackedTime() / (double) Consts.SECONDS_IN_HOURS;
+                    }
+                }
+            }
+            double remainingWork = getProjectWorkedTime(startDate.atStartOfDay(), date.atStartOfDay()) - totalWorkCompleted;
+            Day iterDay = new Day(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            factBurndown.add(iterDay, (remainingWork / 8) + idealWorkingHours);
+        }
+
+        return factBurndown;
     };
 }
