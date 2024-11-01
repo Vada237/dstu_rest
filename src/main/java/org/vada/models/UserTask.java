@@ -18,8 +18,8 @@ public class UserTask extends Model{
     private Task task;
     private int taskId;
     private int trackedTime;
-    private Date createdAt;
-    private Date updatedAt;
+    private String createdAt;
+    private String updatedAt;
     private int totalProgress;
 
     public int getId() {
@@ -58,12 +58,21 @@ public class UserTask extends Model{
         this.totalProgress = totalProgress;
     }
 
-    public UserTask(int id, int userId, int taskId, int trackedTime, int totalProgress) {
+    public UserTask(int id, int userId, int taskId, int trackedTime, int totalProgress, String createdAt) {
         this.id = id;
         this.userId = userId;
         this.taskId = taskId;
         this.trackedTime = trackedTime;
         this.totalProgress = totalProgress;
+        this.createdAt = createdAt;
+    }
+
+    public String getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
     }
 
     public static void insert(Map<String, Object> params) throws SQLException {
@@ -97,7 +106,8 @@ public class UserTask extends Model{
                     data.getInt("user_id"),
                     data.getInt("task_id"),
                     data.getInt("tracked_time"),
-                    data.getInt("total_progress")
+                    data.getInt("total_progress"),
+                    data.getString("created_at")
             ));
         }
 
