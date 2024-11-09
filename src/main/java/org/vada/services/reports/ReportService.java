@@ -11,6 +11,7 @@ import org.vada.resources.ProjectInfoResource;
 import org.vada.services.charts.ChartService;
 import org.vada.services.charts.ChartServiceImpl;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -68,5 +69,12 @@ public class ReportService{
                 .header("Content-Disposition", "inline; filename=" + filename)
                 .header("Content-Type", "image/png")
                 .build();
+    }
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/all")
+    public List<Project> getAllProjects() throws SQLException {
+        return Project.all();
     }
 }
