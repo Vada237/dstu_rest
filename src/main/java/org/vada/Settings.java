@@ -10,6 +10,6 @@ public class Settings {
     public static final String DRIVER = dotenv.get("DB_DRIVER");
     public static final String DB_NAME = dotenv.get("DB_NAME");
     public static final String URL = "jdbc:" + DRIVER + "://" + HOST + ":" + PORT + "/" + DB_NAME;
-
+    public static final String BASE_URI = "http://localhost:8081/api/";
     public static final int HTTP_RESPONSE_NOT_FOUND = 404;
 }

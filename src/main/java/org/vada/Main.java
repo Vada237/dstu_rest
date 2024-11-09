@@ -6,9 +6,9 @@ import org.glassfish.jersey.server.ResourceConfig;
 
 import java.net.URI;
 
-public class Main {
-    public static final String BASE_URI = "http://localhost:8081/api/";
+import static org.vada.Settings.BASE_URI;
 
+public class Main {
     public static HttpServer startServer() {
         final ResourceConfig rc = new ResourceConfig().packages("org.vada.services.reports");
 
