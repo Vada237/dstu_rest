@@ -9,7 +9,7 @@ public class PostgresManager {
 
     public static Connection connect() {
         try {
-            return DriverManager.getConnection(Settings.URL, Settings.USER, Settings.PASSWORD);
+            return DriverManager.getConnection(Settings.DB_URL, Settings.USER, Settings.PASSWORD);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

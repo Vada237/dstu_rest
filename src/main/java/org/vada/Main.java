@@ -16,10 +16,11 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        final HttpServer server = startServer();
-        System.out.println(String.format("Jersey app started at %s%s", BASE_URI, "message"));
-        System.out.println("Hit enter to stop it...");
-        System.in.read();
-        server.shutdownNow();
+//        final HttpServer server = startServer();
+        CamundaClient.run();
+//        System.out.println(String.format("Jersey app started at %s%s", BASE_URI, "message"));
+//        System.out.println("Hit enter to stop it...");
+//        System.in.read();
+//        server.shutdownNow();
     }
 }
