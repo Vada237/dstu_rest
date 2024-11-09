@@ -21,11 +21,9 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
-import static org.vada.consts.Consts.DEFAULT_WORK_HOURS;
-import static org.vada.consts.Consts.HOURS_IN_DAY;
+import static org.vada.consts.Consts.*;
 
 public class ChartServiceImpl implements ChartService {
     private final int CHART_WIDTH = 800;
@@ -63,6 +61,7 @@ public class ChartServiceImpl implements ChartService {
 
         return chart;
     }
+
     private long getProjectWorkedTime(LocalDateTime startTime, LocalDateTime endTime) {
         long TotalWorkInHours = Duration.between(startTime, endTime).toHours();
 
@@ -105,40 +104,69 @@ public class ChartServiceImpl implements ChartService {
         return idealBurndown;
     }
 
+
     private TimeSeries generateIterationLine(List<Task> taskList, LocalDate startingDate, double idealWorkingHours) throws SQLException {
         TimeSeries factBurndown = new TimeSeries("Фактические затраты");
 
-        LocalDate startDate = taskList.stream()
-                .map(task -> LocalDate.parse(task.getStartTime(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-                .min(LocalDate::compareTo)
-                .orElse(LocalDate.now());
+        Map<LocalDate, Double> factWorkingHours = new TreeMap<>(getFactHWorkingHoursMapping(taskList));
 
-        LocalDate finishDate = taskList.stream()
-                .map(task -> LocalDate.parse(task.getFinishTime(),  DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
-                .max(LocalDate::compareTo)
-                .orElse(LocalDate.now());
+        double remainingWorkingHours = idealWorkingHours;
 
         Day startDay = new Day(Date.from(startingDate.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
         factBurndown.add(startDay, idealWorkingHours);
-        double totalWorkCompleted = 0;
-        for (LocalDate date = startDate; !date.isAfter(finishDate); date = date.plusDays(1)) {
-            for (Task task : taskList) {
-                double taskWorkCompleted = 0;
-                for (UserTask userTask : UserTask.getByTaskId(task.getId())) {
-                    LocalDate userTaskDate = LocalDate.parse(userTask.getCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                    if (!userTaskDate.isAfter(date)) {
-                        taskWorkCompleted += userTask.getTrackedTime() / (double) Consts.SECONDS_IN_HOURS;
-                    }
-                    if (userTask.getTotalProgress() == 100 && !userTaskDate.isAfter(date)) {
-                        totalWorkCompleted += userTask.getTrackedTime() / (double) Consts.SECONDS_IN_HOURS;
-                    }
-                }
-            }
-            double remainingWork = getProjectWorkedTime(startDate.atStartOfDay(), date.atStartOfDay()) - totalWorkCompleted;
-            Day iterDay = new Day(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
-            factBurndown.add(iterDay, (remainingWork / 8) + idealWorkingHours);
+
+        for (Map.Entry<LocalDate, Double> entry : factWorkingHours.entrySet()) {
+            Day iterDay = new Day(Date.from(entry.getKey().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            remainingWorkingHours -= entry.getValue();
+            factBurndown.add(iterDay, remainingWorkingHours);
         }
 
         return factBurndown;
-    };
+    }
+
+    public Map<LocalDate, Double> getFactHWorkingHoursMapping(List<Task> taskList) throws SQLException {
+        Map<LocalDate, Double> factWorkedHours = new HashMap<LocalDate, Double>();
+
+        for (Task task : taskList) {
+            List<UserTask> userTasks = UserTask.getByTaskId(task.getId());
+
+            for (UserTask userTask : userTasks) {
+                LocalDate iterationDate = getNextMondayIfWeekend(
+                        LocalDate.parse(userTask.getCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+
+                int trackedTime = userTask.getTrackedTime();
+                while (trackedTime > 0) {
+                    if (trackedTime >= Consts.SECONDS_IN_HOURS * Consts.WORKED_HOURS_IN_DAY) {
+                        if (factWorkedHours.containsKey(iterationDate)) {
+                            double currentValue = factWorkedHours.get(iterationDate);
+                            factWorkedHours.put(iterationDate, currentValue + Consts.WORKED_HOURS_IN_DAY);
+                        } else {
+                            factWorkedHours.put(iterationDate, (double) WORKED_HOURS_IN_DAY);
+                        }
+                        trackedTime -= Consts.SECONDS_IN_HOURS * Consts.WORKED_HOURS_IN_DAY;
+                        iterationDate = getNextMondayIfWeekend(iterationDate.plusDays(1));
+                    } else {
+                        if (factWorkedHours.containsKey(iterationDate)) {
+                            double currentValue = factWorkedHours.get(iterationDate);
+                            factWorkedHours.put(iterationDate, currentValue + (double) trackedTime / Consts.SECONDS_IN_HOURS);
+                        } else {
+                            factWorkedHours.put(iterationDate, (double) trackedTime / Consts.SECONDS_IN_HOURS);
+                        }
+                        trackedTime -= trackedTime;
+                    }
+                }
+            }
+        }
+
+        return factWorkedHours;
+    }
+
+    private LocalDate getNextMondayIfWeekend(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case DayOfWeek.SATURDAY -> date.plusDays(2);
+            case DayOfWeek.SUNDAY -> date.plusDays(1);
+            default -> date;
+        };
+    }
 }
