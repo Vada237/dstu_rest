@@ -13,6 +13,8 @@ public class Project extends Model{
     private String title;
     private LocalDateTime startTime;
     private LocalDateTime finishTime;
+
+    private int countHours;
     private List<Task> tasks;
 
     public int getId() {
@@ -55,11 +57,20 @@ public class Project extends Model{
         this.finishTime = finishTime;
     }
 
-    public Project(int id, String title, LocalDateTime startTime, LocalDateTime finishTime) {
+    public int getCountHours() {
+        return countHours;
+    }
+
+    public void setCountHours(int countHours) {
+        this.countHours = countHours;
+    }
+
+    public Project(int id, String title, LocalDateTime startTime, LocalDateTime finishTime, int totalHours) {
         this.id = id;
         this.title = title;
         this.startTime = startTime;
         this.finishTime = finishTime;
+        this.countHours = totalHours;
     }
 
     public Project() {
@@ -97,7 +108,8 @@ public class Project extends Model{
                     data.getInt("id"),
                     data.getString("title"),
                     data.getTimestamp("start_time").toLocalDateTime(),
-                    data.getTimestamp("end_time").toLocalDateTime()
+                    data.getTimestamp("end_time").toLocalDateTime(),
+                    data.getInt("count_hours")
             ));
         }
 
