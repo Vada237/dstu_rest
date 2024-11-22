@@ -19,8 +19,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 import static org.vada.consts.Consts.*;
@@ -31,7 +29,7 @@ public class ChartServiceImpl implements ChartService {
 
     @Override
     public byte[] drawBurndownChart(Project project) throws IOException, SQLException {
-        long totalWorkInHours = getProjectWorkedTime(project.getStartTime(), project.getFinishTime());
+        long totalWorkInHours = project.getCountHours();
 
         XYDataset dataset = createDataset(project, totalWorkInHours);
         JFreeChart chart = createChart(dataset, project.getTitle());
@@ -46,7 +44,7 @@ public class ChartServiceImpl implements ChartService {
         JFreeChart chart = ChartFactory.createTimeSeriesChart(
                 "Burndown chart for project " + projectTitle,
                 "Даты ведения проекта",
-                "Количество затраченных рабочих часов",
+                "Количество оставшихся рабочих часов",
                 dataset,
                 true,
                 true,
@@ -60,21 +58,6 @@ public class ChartServiceImpl implements ChartService {
         plot.setRenderer(renderer);
 
         return chart;
-    }
-
-    private long getProjectWorkedTime(LocalDateTime startTime, LocalDateTime endTime) {
-        long TotalWorkInHours = Duration.between(startTime, endTime).toHours();
-
-        LocalDate startDate = startTime.toLocalDate();
-        LocalDate endDate = endTime.toLocalDate();
-
-        long sundays = startDate.until(endDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)), ChronoUnit.WEEKS);
-        long saturdays = startDate.until(endDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY)), ChronoUnit.WEEKS);
-
-        return (
-                (long) (TotalWorkInHours * (float) DEFAULT_WORK_HOURS / (float) HOURS_IN_DAY) -
-                        (long) (((saturdays + sundays) * HOURS_IN_DAY) * ((float) DEFAULT_WORK_HOURS / (float) HOURS_IN_DAY))
-        );
     }
 
     private XYDataset createDataset(Project project, long totalWorkHours) throws SQLException {
@@ -112,13 +95,13 @@ public class ChartServiceImpl implements ChartService {
 
         double remainingWorkingHours = idealWorkingHours;
 
-        Day startDay = new Day(Date.from(startingDate.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        Day startDay = new Day(Date.from(startingDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
         factBurndown.add(startDay, idealWorkingHours);
 
         for (Map.Entry<LocalDate, Double> entry : factWorkingHours.entrySet()) {
             Day iterDay = new Day(Date.from(entry.getKey().atStartOfDay(ZoneId.systemDefault()).toInstant()));
             remainingWorkingHours -= entry.getValue();
-            factBurndown.add(iterDay, remainingWorkingHours);
+            factBurndown.addOrUpdate(iterDay, remainingWorkingHours);
         }
 
         return factBurndown;
@@ -135,26 +118,13 @@ public class ChartServiceImpl implements ChartService {
                         LocalDate.parse(userTask.getCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                 );
 
-                int trackedTime = userTask.getTrackedTime();
-                while (trackedTime > 0) {
-                    if (trackedTime >= Consts.SECONDS_IN_HOURS * Consts.WORKED_HOURS_IN_DAY) {
-                        if (factWorkedHours.containsKey(iterationDate)) {
-                            double currentValue = factWorkedHours.get(iterationDate);
-                            factWorkedHours.put(iterationDate, currentValue + Consts.WORKED_HOURS_IN_DAY);
-                        } else {
-                            factWorkedHours.put(iterationDate, (double) WORKED_HOURS_IN_DAY);
-                        }
-                        trackedTime -= Consts.SECONDS_IN_HOURS * Consts.WORKED_HOURS_IN_DAY;
-                        iterationDate = getNextMondayIfWeekend(iterationDate.plusDays(1));
-                    } else {
-                        if (factWorkedHours.containsKey(iterationDate)) {
-                            double currentValue = factWorkedHours.get(iterationDate);
-                            factWorkedHours.put(iterationDate, currentValue + (double) trackedTime / Consts.SECONDS_IN_HOURS);
-                        } else {
-                            factWorkedHours.put(iterationDate, (double) trackedTime / Consts.SECONDS_IN_HOURS);
-                        }
-                        trackedTime -= trackedTime;
-                    }
+                int trackedTime = userTask.getTrackedTime() / SECONDS_IN_HOURS;
+
+                if (factWorkedHours.containsKey(iterationDate)) {
+                    double currentValue = factWorkedHours.get(iterationDate);
+                    factWorkedHours.put(iterationDate, currentValue + (double) trackedTime);
+                } else {
+                    factWorkedHours.put(iterationDate, (double) trackedTime);
                 }
             }
         }
